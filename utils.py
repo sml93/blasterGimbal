@@ -13,8 +13,8 @@ import time
 import csv
 import binascii
 
-from .compat import to_char, str, bytes, StringIO, is_py3, OrderedDict
-
+from compat_blast import to_char, str, bytes, StringIO, is_py3, OrderedDict
+# from .compat import to_char, str, bytes, StringIO, is_py3, OrderedDict
 
 def is_text(data):
     '''Check if data is text instance'''

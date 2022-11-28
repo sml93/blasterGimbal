@@ -12,15 +12,16 @@
 from __future__ import unicode_literals
 import logging
 from .compat import NullHandler
+from logging import NullHandler
 
 
-LOGGER = logging.getLogger('pysimplebgc')
+LOGGER = logging.getLogger('blasterGimbal')
 LOGGER.addHandler(NullHandler())
 
 
 def active_logger():
     '''Initialize a speaking logger with stream handler (stderr).'''
-    LOGGER = logging.getLogger('pysimplebgc')
+    LOGGER = logging.getLogger('blasterGimbal')
 
     LOGGER.setLevel(logging.INFO)
     logging.getLogger('pylink').setLevel(logging.INFO)

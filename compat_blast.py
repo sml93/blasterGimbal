@@ -42,7 +42,7 @@ is_py34 = (is_py3 and _ver[1] == 4)
 # ---------
 
 if is_py3:
-    from logging import NullHandler
+    # from logging import NullHandler
     from collections import OrderedDict
     from io import StringIO
 

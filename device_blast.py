@@ -12,19 +12,20 @@
 from __future__ import division, unicode_literals
 import struct
 import copy
+import rospy
 from datetime import datetime, timedelta
 from pylink import link_from_url
 from array import array
 
-from .logger import LOGGER
-from .utils import (cached_property, retry, bytes_to_hex, hex_to_bytes,
+# from .logger import LOGGER
+from utils import (cached_property, retry, bytes_to_hex, hex_to_bytes,
                     ListDict, is_bytes)
-from .compat import stdout
+from compat_blast import stdout
 
 
-class NoDeviceException(Exception):
-    '''Can not access device.'''
-    value = __doc__
+# class NoDeviceException(Exception):
+#     '''Can not access device.'''
+#     value = __doc__
 
 
 class BadCmdException(Exception):
@@ -93,33 +94,33 @@ class SimpleBGC32(object):
           {'name': 'CUR_IMU', 'valuefmt': '%d', 'framefmt': 'B'}, {'name': 'CUR_PROFILE', 'valuefmt': '%d', 'framefmt': 'B'},
           {'name': 'MOTOR_POWER_ROLL', 'valuefmt': '%d', 'framefmt': 'B'}, {'name': 'MOTOR_POWER_PITCH', 'valuefmt': '%d', 'framefmt': 'B'},
           {'name': 'MOTOR_POWER_YAW', 'valuefmt': '%d', 'framefmt': 'B'}]},
-        'CMD_REALTIME_DATA_4':
-        {'id': 25, 'cmdbodysize': 0, 'cmdfmt':'', 'respbodysize': 124, 
-         'respfields': [{'name': 'ACC_ROLL', 'valuefmt': '%d', 'framefmt': 'h'}, {'name': 'GYRO_ROLL', 'valuefmt': '%d', 'framefmt': 'h'},
-          {'name': 'ACC_PITCH', 'valuefmt': '%d', 'framefmt': 'h'}, {'name': 'GYRO_PITCH', 'valuefmt': '%d', 'framefmt': 'h'},
-          {'name': 'ACC_YAW', 'valuefmt': '%d', 'framefmt': 'h'}, {'name': 'GYRO_YAW', 'valuefmt': '%d', 'framefmt': 'h'},
-          {'name': 'DEBUG1', 'valuefmt': '%d', 'framefmt': 'h'}, {'name': 'DEBUG2', 'valuefmt': '%d', 'framefmt': 'h'},
-          {'name': 'DEBUG3', 'valuefmt': '%d', 'framefmt': 'h'}, {'name': 'DEBUG4', 'valuefmt': '%d', 'framefmt': 'h'},
-          {'name': 'RC_ROLL', 'valuefmt': '%d', 'framefmt': 'h'}, {'name': 'RC_PITCH', 'valuefmt': '%d', 'framefmt': 'h'},
-          {'name': 'RC_YAW', 'valuefmt': '%d', 'framefmt': 'h'}, {'name': 'RC_CMD', 'valuefmt': '%d', 'framefmt': 'h'},
-          {'name': 'EXT_FC_ROLL', 'valuefmt': '%d', 'framefmt': 'h'}, {'name': 'EXT_FC_PITCH', 'valuefmt': '%d', 'framefmt': 'h'},
-          {'name': 'ANGLE_ROLL', 'valuefmt': '%d', 'framefmt': 'h'}, {'name': 'ANGLE_PITCH', 'valuefmt': '%d', 'framefmt': 'h'},
-          {'name': 'ANGLE_YAW', 'valuefmt': '%d', 'framefmt': 'h'}, {'name': 'FRAME_IMU_ANGLE_ROLL', 'valuefmt': '%d', 'framefmt': 'h'},
-          {'name': 'FRAME_IMU_ANGLE_PITCH', 'valuefmt': '%d', 'framefmt': 'h'}, {'name': 'FRAME_IMU_ANGLE_YAW', 'valuefmt': '%d', 'framefmt': 'h'},
-          {'name': 'RC_ANGLE_ROLL', 'valuefmt': '%d', 'framefmt': 'h'}, {'name': 'RC_ANGLE_PITCH', 'valuefmt': '%d', 'framefmt': 'h'},
-          {'name': 'ANGLE_YAW', 'valuefmt': '%d', 'framefmt': 'h'}, {'name': 'CYCLE_TIME', 'valuefmt': '%d', 'framefmt': 'H'},
-          {'name': 'I2C_ERROR_COUNT', 'valuefmt': '%d', 'framefmt': 'H'}, {'name': 'ERROR_CODE', 'valuefmt': '%d', 'framefmt': 'B'},
-          {'name': 'BAT_LEVEL', 'valuefmt': '%d', 'framefmt': 'H'}, {'name': 'OTHER_FLAGS', 'valuefmt': '%d', 'framefmt': 'B'},
-          {'name': 'CUR_IMU', 'valuefmt': '%d', 'framefmt': 'B'}, {'name': 'CUR_PROFILE', 'valuefmt': '%d', 'framefmt': 'B'},
-          {'name': 'MOTOR_POWER_ROLL', 'valuefmt': '%d', 'framefmt': 'B'}, {'name': 'MOTOR_POWER_PITCH', 'valuefmt': '%d', 'framefmt': 'B'},
-          {'name': 'MOTOR_POWER_YAW', 'valuefmt': '%d', 'framefmt': 'B'}, {'name': 'ROTOR_ANGLE_ROLL', 'valuefmt': '%d', 'framefmt': 'h'},
-          {'name': 'ROTOR_ANGLE_PITCH', 'valuefmt': '%d', 'framefmt': 'h'}, {'name': 'ROTOR_ANGLE_YAW', 'valuefmt': '%d', 'framefmt': 'h'},
-          {'name': 'reserved', 'valuefmt': '%d', 'framefmt': 'B'}, {'name': 'BALANCE_ERROR_ROLL', 'valuefmt': '%d', 'framefmt': 'h'},
-          {'name': 'BALANCE_ERROR_PITCH', 'valuefmt': '%d', 'framefmt': 'h'}, {'name': 'BALANCE_ERROR_YAW', 'valuefmt': '%d', 'framefmt': 'h'},
-          {'name': 'CURRENT', 'valuefmt': '%d', 'framefmt': 'h'}, {'name': 'MAG_DATA_ROLL', 'valuefmt': '%d', 'framefmt': 'h'},
-          {'name': 'MAG_DATA_PITCH', 'valuefmt': '%d', 'framefmt': 'h'}, {'name': 'MAG_DATA_YAW', 'valuefmt': '%d', 'framefmt': 'h'},
-          {'name': 'IMU_TEMPERATURE', 'valuefmt': '%d', 'framefmt': 'b'}, {'name': 'FRAME_IMU_TEMPERATURE', 'valuefmt': '%d', 'framefmt': 'b'},
-          {'name': 'reserved', 'valuefmt': '%s', 'framefmt': '38s'}]}
+        # 'CMD_REALTIME_DATA_4':
+        # {'id': 25, 'cmdbodysize': 0, 'cmdfmt':'', 'respbodysize': 124, 
+        #  'respfields': [{'name': 'ACC_ROLL', 'valuefmt': '%d', 'framefmt': 'h'}, {'name': 'GYRO_ROLL', 'valuefmt': '%d', 'framefmt': 'h'},
+        #   {'name': 'ACC_PITCH', 'valuefmt': '%d', 'framefmt': 'h'}, {'name': 'GYRO_PITCH', 'valuefmt': '%d', 'framefmt': 'h'},
+        #   {'name': 'ACC_YAW', 'valuefmt': '%d', 'framefmt': 'h'}, {'name': 'GYRO_YAW', 'valuefmt': '%d', 'framefmt': 'h'},
+        #   {'name': 'DEBUG1', 'valuefmt': '%d', 'framefmt': 'h'}, {'name': 'DEBUG2', 'valuefmt': '%d', 'framefmt': 'h'},
+        #   {'name': 'DEBUG3', 'valuefmt': '%d', 'framefmt': 'h'}, {'name': 'DEBUG4', 'valuefmt': '%d', 'framefmt': 'h'},
+        #   {'name': 'RC_ROLL', 'valuefmt': '%d', 'framefmt': 'h'}, {'name': 'RC_PITCH', 'valuefmt': '%d', 'framefmt': 'h'},
+        #   {'name': 'RC_YAW', 'valuefmt': '%d', 'framefmt': 'h'}, {'name': 'RC_CMD', 'valuefmt': '%d', 'framefmt': 'h'},
+        #   {'name': 'EXT_FC_ROLL', 'valuefmt': '%d', 'framefmt': 'h'}, {'name': 'EXT_FC_PITCH', 'valuefmt': '%d', 'framefmt': 'h'},
+        #   {'name': 'ANGLE_ROLL', 'valuefmt': '%d', 'framefmt': 'h'}, {'name': 'ANGLE_PITCH', 'valuefmt': '%d', 'framefmt': 'h'},
+        #   {'name': 'ANGLE_YAW', 'valuefmt': '%d', 'framefmt': 'h'}, {'name': 'FRAME_IMU_ANGLE_ROLL', 'valuefmt': '%d', 'framefmt': 'h'},
+        #   {'name': 'FRAME_IMU_ANGLE_PITCH', 'valuefmt': '%d', 'framefmt': 'h'}, {'name': 'FRAME_IMU_ANGLE_YAW', 'valuefmt': '%d', 'framefmt': 'h'},
+        #   {'name': 'RC_ANGLE_ROLL', 'valuefmt': '%d', 'framefmt': 'h'}, {'name': 'RC_ANGLE_PITCH', 'valuefmt': '%d', 'framefmt': 'h'},
+        #   {'name': 'ANGLE_YAW', 'valuefmt': '%d', 'framefmt': 'h'}, {'name': 'CYCLE_TIME', 'valuefmt': '%d', 'framefmt': 'H'},
+        #   {'name': 'I2C_ERROR_COUNT', 'valuefmt': '%d', 'framefmt': 'H'}, {'name': 'ERROR_CODE', 'valuefmt': '%d', 'framefmt': 'B'},
+        #   {'name': 'BAT_LEVEL', 'valuefmt': '%d', 'framefmt': 'H'}, {'name': 'OTHER_FLAGS', 'valuefmt': '%d', 'framefmt': 'B'},
+        #   {'name': 'CUR_IMU', 'valuefmt': '%d', 'framefmt': 'B'}, {'name': 'CUR_PROFILE', 'valuefmt': '%d', 'framefmt': 'B'},
+        #   {'name': 'MOTOR_POWER_ROLL', 'valuefmt': '%d', 'framefmt': 'B'}, {'name': 'MOTOR_POWER_PITCH', 'valuefmt': '%d', 'framefmt': 'B'},
+        #   {'name': 'MOTOR_POWER_YAW', 'valuefmt': '%d', 'framefmt': 'B'}, {'name': 'ROTOR_ANGLE_ROLL', 'valuefmt': '%d', 'framefmt': 'h'},
+        #   {'name': 'ROTOR_ANGLE_PITCH', 'valuefmt': '%d', 'framefmt': 'h'}, {'name': 'ROTOR_ANGLE_YAW', 'valuefmt': '%d', 'framefmt': 'h'},
+        #   {'name': 'reserved', 'valuefmt': '%d', 'framefmt': 'B'}, {'name': 'BALANCE_ERROR_ROLL', 'valuefmt': '%d', 'framefmt': 'h'},
+        #   {'name': 'BALANCE_ERROR_PITCH', 'valuefmt': '%d', 'framefmt': 'h'}, {'name': 'BALANCE_ERROR_YAW', 'valuefmt': '%d', 'framefmt': 'h'},
+        #   {'name': 'CURRENT', 'valuefmt': '%d', 'framefmt': 'h'}, {'name': 'MAG_DATA_ROLL', 'valuefmt': '%d', 'framefmt': 'h'},
+        #   {'name': 'MAG_DATA_PITCH', 'valuefmt': '%d', 'framefmt': 'h'}, {'name': 'MAG_DATA_YAW', 'valuefmt': '%d', 'framefmt': 'h'},
+        #   {'name': 'IMU_TEMPERATURE', 'valuefmt': '%d', 'framefmt': 'b'}, {'name': 'FRAME_IMU_TEMPERATURE', 'valuefmt': '%d', 'framefmt': 'b'},
+        #   {'name': 'reserved', 'valuefmt': '%s', 'framefmt': '38s'}]}
         }
     
     HEADER_SIZE = 4    
@@ -152,18 +153,22 @@ class SimpleBGC32(object):
          :param timeout: Define timeout when reading ACK from link
          '''
         if is_bytes(data):
-            LOGGER.info("try send : %s" % bytes_to_hex(data))
+            # rospy.loginfo("try send : %s" % bytes_to_hex(data))
+            # LOGGER.info("try send : %s" % bytes_to_hex(data))
             self.link.write(data)
         else:
-            LOGGER.info("try send : %s" % data)
+            # rospy.loginfo("try send : %s" % data)
+            # LOGGER.info("try send : %s" % data)
             self.link.write("%s" % data)
         if wait_ack is None:
             return True
         ack = self.link.read(len(wait_ack), timeout=timeout)
         if wait_ack == ack:
-            LOGGER.info("Check ACK: OK (%s)" % (repr(ack)))
+            # rospy.loginfo("Check ACK: OK (%s)" % (repr(ack)))
+            # LOGGER.info("Check ACK: OK (%s)" % (repr(ack)))
             return True
-        LOGGER.error("Check ACK: BAD (%s != %s)" % (repr(wait_ack), repr(ack)))
+        rospy.logerr("Check ACK: BAD (%s != %s)" % (repr(wait_ack), repr(ack)))
+        # LOGGER.error("Check ACK: BAD (%s != %s)" % (repr(wait_ack), repr(ack)))
         raise BadAckException()
 
 
@@ -179,7 +184,8 @@ class SimpleBGC32(object):
             respsize = 1 + self.HEADER_SIZE + self.cmdtypelist[cmdtype]['respbodysize']
             respdata = self.link.read(respsize)
             unpack_data = self._unpack_response(cmdid, respdata)
-            LOGGER.info("unpacked data: %s" % (unpack_data))
+            # rospy.loginfo("unpacked data: %s" % (unpack_data))
+            # LOGGER.info("unpacked data: %s" % (unpack_data))
             framefmt = self.torespfieldsframeformat(cmdtype)
             data = struct.unpack(framefmt, unpack_data)
             for i in range(len(data)):
@@ -263,9 +269,13 @@ class SimpleBGC32(object):
         '''Returns True if cmdtype valid'''
         iscmdvalid = (cmdtype in self.cmdtypelist)
         if iscmdvalid:
-            LOGGER.info("check validity of command type: OK %s" % (cmdtype))
+            # rospy.loginfo("check validity of command type: OK %s" % (cmdtype))
+            # LOGGER.info("check validity of command type: OK %s" % (cmdtype))
+            pass
         else:
-            LOGGER.info("check validity of command type: BAD %s" % (cmdtype))            
+            # rospy.loginfo("check validity of command type: BAD %s" % (cmdtype)) 
+            # LOGGER.info("check validity of command type: BAD %s" % (cmdtype))
+            pass            
         return (iscmdvalid)
 
 
@@ -275,21 +285,29 @@ class SimpleBGC32(object):
         :param cmddata : command data, array of char
         '''
         
-        LOGGER.info("try pack command : %s" % cmdtype)
+        # rospy.loginfo("try pack command : %s" % cmdtype)
+        # LOGGER.info("try pack command : %s" % cmdtype)
         try :
             cmdid = self.cmdtypelist[cmdtype]['id']
             cmdbodysize = self.cmdtypelist[cmdtype]['cmdbodysize']
-            LOGGER.info("Check CMDID: OK (%s,%d,%d)" % (cmdtype, cmdid, cmdbodysize))
+            # rospy.loginfo("Check CMDID: OK (%s,%d,%d)" % (cmdtype, cmdid, cmdbodysize))
+            # LOGGER.info("Check CMDID: OK (%s,%d,%d)" % (cmdtype, cmdid, cmdbodysize))
         except :
-            LOGGER.info("Check CMDID: BAD (%s)" % (cmdtype))
+            # rospy.loginfo("Check CMDID: BAD (%s)" % (cmdtype))
+            # LOGGER.info("Check CMDID: BAD (%s)" % (cmdtype))
+            pass
             raise BadCmdException()            
             
         body_realsize = len(cmddata)
         # verify if body size is correct
         if (body_realsize == cmdbodysize):
-            LOGGER.info("Check CMDBODY: OK (%d)" % (cmdbodysize))
+            # rospy.loginfo("Check CMDBODY: OK (%d)" % (cmdbodysize))
+            # LOGGER.info("Check CMDBODY: OK (%d)" % (cmdbodysize))
+            pass
         else:
-            LOGGER.info("Check CMDBODY: BAD (%d,%d)" % (cmdbodysize, body_realsize))
+            # rospy.loginfo("Check CMDBODY: BAD (%d,%d)" % (cmdbodysize, body_realsize))
+            # LOGGER.info("Check CMDBODY: BAD (%d,%d)" % (cmdbodysize, body_realsize))
+            pass
             raise BadCmdException()            
             
         fullcmd = chr(cmdid) + chr(cmdbodysize)
@@ -308,21 +326,31 @@ class SimpleBGC32(object):
     def _unpack_response(self, cmdid, packed_resp):
         ''' unpacks the responce received after sending a command '''
 
-        LOGGER.info("try unpack response : %s" % packed_resp)
+        # rospy.loginfo("try unpack response : %s" % packed_resp)
+        # LOGGER.info("try unpack response : %s" % packed_resp)
+
         # verify if size of packed_resp is higher than the minimal accepted,
         # 4 bytes for the header + 1 byte for the body checkum
         resp_size = len(packed_resp)
         if (resp_size > self.HEADER_SIZE):
-            LOGGER.info("Check MINRESPSIZE: OK (%d)" % resp_size)
+            # rospy.loginfo("Check MINRESPSIZE: OK (%d)" % resp_size)
+            # LOGGER.info("Check MINRESPSIZE: OK (%d)" % resp_size)
+            pass
         else:
-            LOGGER.info("Check MINRESPSIZE: BAD (%d)" % resp_size)
+            # rospy.loginfo("Check MINRESPSIZE: BAD (%d)" % resp_size)
+            # LOGGER.info("Check MINRESPSIZE: BAD (%d)" % resp_size)
+            pass
             raise BadCmdException()            
 
         # verify if 2 first bytes od header are '>' and cmdid
         if (chr(packed_resp[0]) == '>') and (packed_resp[1] == cmdid):
-            LOGGER.info("Check ACK: OK (%s)" % (packed_resp[:2]))
+            # rospy.loginfo("Check ACK: OK (%s)" % (packed_resp[:2]))
+            # LOGGER.info("Check ACK: OK (%s)" % (packed_resp[:2]))
+            pass
         else:
-            LOGGER.info("Check ACK: BAD (%s,'>',%s)" % (packed_resp[:2], cmdid))
+            # rospy.loginfo("Check ACK: BAD (%s,'>',%s)" % (packed_resp[:2], cmdid))
+            # LOGGER.info("Check ACK: BAD (%s,'>',%s)" % (packed_resp[:2], cmdid))
+            pass
             raise BadCmdException()
 
         data_size = packed_resp[2]
@@ -330,17 +358,25 @@ class SimpleBGC32(object):
         header_checksum = packed_resp[3]
         header_realchecksum = self._checksum8bytes(packed_resp[1:3])
         if (header_checksum == header_realchecksum):
-            LOGGER.info("Check HEADERCRC: OK (%s)" % (header_checksum))
+            # rospy.loginfo("Check HEADERCRC: OK (%s)" % (header_checksum))
+            # LOGGER.info("Check HEADERCRC: OK (%s)" % (header_checksum))
+            pass
         else:
-            LOGGER.info("Check HEADERCRC: BAD (%s,%s)" % (header_checksum, header_realchecksum))
+            # rospy.loginfo("Check HEADERCRC: BAD (%s,%s)" % (header_checksum, header_realchecksum))
+            # LOGGER.info("Check HEADERCRC: BAD (%s,%s)" % (header_checksum, header_realchecksum))
+            pass
             raise BadCRCException()
 
         # verify data size
         data_realsize = resp_size - self.HEADER_SIZE - 1
         if (data_realsize == data_size):
-            LOGGER.info("Check DATASIZE: OK (%s)" % data_size)
+            # rospy.loginfo("Check DATASIZE: OK (%s)" % data_size)
+            # LOGGER.info("Check DATASIZE: OK (%s)" % data_size)
+            pass
         else:
-            LOGGER.info("Check DATASIZE: BAD (%s,%s)" % (data_size, data_realsize))
+            # rospy.loginfo("Check DATASIZE: BAD (%s,%s)" % (data_size, data_realsize))
+            # LOGGER.info("Check DATASIZE: BAD (%s,%s)" % (data_size, data_realsize))
+            pass
             raise BadDataException()
 
         # verify data checksum
@@ -351,9 +387,13 @@ class SimpleBGC32(object):
             data = packed_resp[self.HEADER_SIZE:resp_size-1]
             data_realchecksum = self._checksum8bytes(data)
             if (data_checksum == data_realchecksum):
-                LOGGER.info("Check DATACRC: OK (%x)" % data_checksum)
+                # rospy.loginfo("Check DATACRC: OK (%x)" % data_checksum)
+                # LOGGER.info("Check DATACRC: OK (%x)" % data_checksum)
+                pass
             else:
-                LOGGER.info("Check DATACRC: BAD (%x,%x)" % (data_checksum, data_realchecksum))
+                # rospy.loginfo("Check DATACRC: BAD (%x,%x)" % (data_checksum, data_realchecksum))
+                # LOGGER.info("Check DATACRC: BAD (%x,%x)" % (data_checksum, data_realchecksum))
+                pass
                 raise BadCRCException()
             
         return data                
